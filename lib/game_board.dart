@@ -32,7 +32,7 @@ class _GameBoardState extends State<GameBoard> {
   @override
   void initState() {
     super.initState();
-    startGame();
+    initGame();
   }
 
   void checkGameOver() {
@@ -43,7 +43,12 @@ class _GameBoardState extends State<GameBoard> {
     }
   }
 
-  Future<void> loadHighScore() async {
+  Future<void> initGame() async {
+    loadHighScore();
+    startGame();
+  }
+
+  void loadHighScore() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       highScore = prefs.getInt('highScore') ?? 0;
@@ -53,12 +58,20 @@ class _GameBoardState extends State<GameBoard> {
   Future<void> updateHighScore() async {
     final prefs = await SharedPreferences.getInstance();
     if (currentScore > highScore) {
-      setState(() {
-        highScore = currentScore;
-      });
-      prefs.setInt('highScore', highScore);
+      highScore = currentScore;
+      await prefs.setInt('highScore', highScore);
     }
+    setState(() {});
   }
+
+  // void updateHighScore() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   if (currentScore > highScore) {
+  //     highScore = currentScore;
+  //     prefs.setInt('highScore', highScore);
+  //     setState(() {});
+  //   }
+  // }
 
   void startGame() {
     Random random = Random();
@@ -208,6 +221,12 @@ class _GameBoardState extends State<GameBoard> {
       }
       if (isGameOver()) {
         // gameOver = true;
+        if (highScore == 0) {
+          highScore = currentScore;
+        } else if (currentScore > highScore) {
+          // Compare current vs high
+          highScore = currentScore;
+        }
         timer?.cancel();
         showGameOverDialog(context);
       } else {
@@ -277,30 +296,30 @@ class _GameBoardState extends State<GameBoard> {
     checkLanding();
   }
 
-  void clearLines() {
-    //step 1: Loop through each row of the game board from bottom to top
+  void clearLines() async {
     for (int row = columnCount - 1; row >= 0; row--) {
-      // step 2: Initialize a variable to track if the row is full
       bool rowIsFull = true;
-      // step 3: Check if the row is full(all columns in the row are filled with pieces)
+
       for (int col = 0; col < rowCount; col++) {
-        // if there's an empty col, set rowIsFull to false and break the loop
         if (gameBoard[row][col] == null) {
           rowIsFull = false;
           break;
         }
       }
-      //step 4: if the row is full, clear the row and shift the rows down
+
       if (rowIsFull) {
-        //step 5 : move all rows above the cleared row down by position
         for (int r = row; r > 0; r--) {
-          //copy the above row to the current row
           gameBoard[r] = List.from(gameBoard[r - 1]);
         }
-        //step 6: set the top row to empty
+
         gameBoard[0] = List.generate(rowCount, (index) => null);
-        //step 7: increase the score!
-        currentScore++;
+
+        setState(() {
+          currentScore++;
+        });
+
+        updateHighScore();
+        row++;
       }
     }
   }
@@ -326,7 +345,6 @@ class _GameBoardState extends State<GameBoard> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Header with Music Control
               _buildHeader(),
               SizedBox(height: 20),
 
