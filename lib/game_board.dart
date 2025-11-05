@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'piece.dart';
 import 'utils.dart';
@@ -22,15 +23,41 @@ class _GameBoardState extends State<GameBoard> {
   // Random random = Random();
   // Piece currentPiece = Piece(type: TetrominoType.values.first);
   late Piece currentPiece;
-
   Timer? timer;
   int currentScore = 0;
+  int highScore = 0;
+
   bool gameOver = false;
 
   @override
   void initState() {
     super.initState();
     startGame();
+  }
+
+  void checkGameOver() {
+    if (isGameOver()) {
+      updateHighScore();
+      showGameOverDialog(context);
+      timer?.cancel();
+    }
+  }
+
+  Future<void> loadHighScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      highScore = prefs.getInt('highScore') ?? 0;
+    });
+  }
+
+  Future<void> updateHighScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (currentScore > highScore) {
+      setState(() {
+        highScore = currentScore;
+      });
+      prefs.setInt('highScore', highScore);
+    }
   }
 
   void startGame() {
@@ -290,7 +317,7 @@ class _GameBoardState extends State<GameBoard> {
     return false;
   }
 
-  @override
+  /*  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[900],
@@ -382,6 +409,21 @@ class _GameBoardState extends State<GameBoard> {
               fontSize: 24,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.5,
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 75, 54, 17),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "High Score: $currentScore",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           Container(
@@ -495,81 +537,83 @@ class _GameBoardState extends State<GameBoard> {
       ),
     );
   }
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     backgroundColor: Colors.grey[900],
-  //     body: SafeArea(
-  //       child: Padding(
-  //         padding: const EdgeInsets.all(16.0),
-  //         child: Column(
-  //           children: [
-  //             // Minimal Header
-  //             _buildHeader(),
-  //             SizedBox(height: 20),
+}
+ */
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[900],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header with Music Control
+              _buildHeader(),
+              SizedBox(height: 20),
 
-  //             // Expanded Game Board
-  //             Expanded(
-  //               child: Container(
-  //                 decoration: BoxDecoration(
-  //                   border: Border.all(color: Colors.blueGrey[800]!, width: 3),
-  //                   borderRadius: BorderRadius.circular(12),
-  //                   boxShadow: [
-  //                     BoxShadow(
-  //                       color: Colors.black.withOpacity(0.6),
-  //                       blurRadius: 15,
-  //                       spreadRadius: 3,
-  //                     ),
-  //                   ],
-  //                 ),
-  //                 child: ClipRRect(
-  //                   borderRadius: BorderRadius.circular(10),
-  //                   child: GridView.builder(
-  //                     physics: const NeverScrollableScrollPhysics(),
-  //                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-  //                       crossAxisCount: rowCount,
-  //                     ),
-  //                     itemCount: rowCount * columnCount,
-  //                     itemBuilder: (context, index) {
-  //                       int row = (index / rowCount).floor();
-  //                       int col = index % rowCount;
+              // Flexible Game Board
+              Flexible(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueGrey[800]!, width: 3),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.6),
+                        blurRadius: 15,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: rowCount,
+                      ),
+                      itemCount: rowCount * columnCount,
+                      itemBuilder: (context, index) {
+                        int row = (index / rowCount).floor();
+                        int col = index % rowCount;
 
-  //                       if (currentPiece.positions.contains(index)) {
-  //                         return _buildGameCell(
-  //                           color: currentPiece.color,
-  //                           hasBorder: true,
-  //                           isActive: true,
-  //                         );
-  //                       } else if (gameBoard[row][col] != null) {
-  //                         return _buildGameCell(
-  //                           color: tetrominoColors[gameBoard[row][col]]!,
-  //                           hasBorder: false,
-  //                           isActive: false,
-  //                         );
-  //                       } else {
-  //                         return _buildGameCell(
-  //                           color: Colors.grey[800]!,
-  //                           hasBorder: false,
-  //                           isActive: false,
-  //                         );
-  //                       }
-  //                     },
-  //                   ),
-  //                 ),
-  //               ),
-  //             ),
+                        if (currentPiece.positions.contains(index)) {
+                          return _buildGameCell(
+                            color: currentPiece.color,
+                            hasBorder: true,
+                            isActive: true,
+                          );
+                        } else if (gameBoard[row][col] != null) {
+                          return _buildGameCell(
+                            color: tetrominoColors[gameBoard[row][col]]!,
+                            hasBorder: false,
+                            isActive: false,
+                          );
+                        } else {
+                          return _buildGameCell(
+                            color: Colors.grey[800]!,
+                            hasBorder: false,
+                            isActive: false,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
 
-  //             SizedBox(height: 20),
+              SizedBox(height: 20),
 
-  //             // Compact Game Controls
-  //             _buildGameControls(),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-  /* 
+              // Game Controls
+              _buildGameControls(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
@@ -589,24 +633,39 @@ class _GameBoardState extends State<GameBoard> {
               letterSpacing: 1.5,
             ),
           ),
+
+          // Music Control
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.purple[700],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  "High Score : $highScore",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.amber[700],
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.amber.withOpacity(0.3),
-                  blurRadius: 6,
-                  spreadRadius: 1,
-                ),
-              ],
             ),
             child: Text(
               "Score: $currentScore",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -625,25 +684,10 @@ class _GameBoardState extends State<GameBoard> {
       margin: EdgeInsets.all(0.5),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(2),
         border: hasBorder
-            ? Border.all(color: Colors.white.withOpacity(0.9), width: 1.5)
+            ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
             : null,
-        boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: color.withOpacity(0.8),
-                  blurRadius: 6,
-                  spreadRadius: 2,
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 2,
-                  spreadRadius: 0.5,
-                ),
-              ],
       ),
     );
   }
@@ -651,24 +695,20 @@ class _GameBoardState extends State<GameBoard> {
   Widget _buildGameControls() {
     return Container(
       padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey[800]!.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Row - Rotate Button
+          // Rotate Button
           _buildControlButton(
             onPressed: rotatePiece,
             icon: Icons.rotate_right,
             color: Colors.orange[700]!,
-            size: 50,
+            size: 60,
           ),
 
-          SizedBox(height: 12),
+          SizedBox(height: 16),
 
-          // Middle Row - Left/Right Buttons
+          // Direction Buttons Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -676,28 +716,23 @@ class _GameBoardState extends State<GameBoard> {
                 onPressed: moveLeft,
                 icon: Icons.arrow_left,
                 color: Colors.blue[700]!,
-                size: 50,
+                size: 60,
               ),
 
-              SizedBox(width: 60),
+              _buildControlButton(
+                onPressed: moveDownOne,
+                icon: Icons.arrow_drop_down,
+                color: Colors.red[700]!,
+                size: 60,
+              ),
 
               _buildControlButton(
                 onPressed: moveRight,
                 icon: Icons.arrow_right,
                 color: Colors.blue[700]!,
-                size: 50,
+                size: 60,
               ),
             ],
-          ),
-
-          SizedBox(height: 12),
-
-          // Bottom Row - Down Button
-          _buildControlButton(
-            onPressed: moveDownOne,
-            icon: Icons.arrow_drop_down,
-            color: Colors.red[700]!,
-            size: 50,
           ),
         ],
       ),
@@ -731,6 +766,4 @@ class _GameBoardState extends State<GameBoard> {
       ),
     );
   }
-}
- */
 }
