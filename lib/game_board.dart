@@ -4,8 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'piece.dart';
-import 'pixel.dart';
-import 'values.dart';
+import 'utils.dart';
 
 List<List<TetrominoType?>> gameBoard = List.generate(
   columnCount,
@@ -20,7 +19,10 @@ class GameBoard extends StatefulWidget {
 }
 
 class _GameBoardState extends State<GameBoard> {
-  Piece currentPiece = Piece(type: TetrominoType.values.first);
+  // Random random = Random();
+  // Piece currentPiece = Piece(type: TetrominoType.values.first);
+  late Piece currentPiece;
+
   Timer? timer;
   int currentScore = 0;
   bool gameOver = false;
@@ -32,18 +34,15 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   void startGame() {
+    Random random = Random();
+
+    // Generate a random TetrominoType for the first piece
+    TetrominoType randomType =
+        TetrominoType.values[random.nextInt(TetrominoType.values.length)];
+    currentPiece = Piece(type: randomType);
     currentPiece.initializePiece();
-    Duration frameRate = Duration(milliseconds: 800);
+    Duration frameRate = Duration(milliseconds: 600);
     gameLoop(frameRate);
-    // currentPiece = Piece(type: TetrominoType.values.first)..initializePiece();
-    // const frameRate = Duration(milliseconds: 800);
-    // timer = Timer.periodic(frameRate, (timer) {
-    //   setState(() {
-    //     clearLines();
-    //     checkLanding();
-    //     currentPiece.movePiece(Direction.down);
-    //   });
-    // });
   }
 
   void gameLoop(Duration frameRate) {
@@ -66,25 +65,73 @@ class _GameBoardState extends State<GameBoard> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text('Game Over'),
-        content: Text('Your final score is: $currentScore'),
-        actions: <Widget>[
-          TextButton(
-            child: Text('Play Again'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              resetGame();
-            },
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.redAccent, width: 2),
           ),
-        ],
-      ),
+          title: Text(
+            'Game Over',
+            style: TextStyle(
+              color: Colors.redAccent,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Text(
+            'Score: $currentScore',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            Center(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.greenAccent, Colors.green],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    resetGame();
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.restart_alt, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        'Play Again',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void resetGame() {
+    Color.fromARGB(255, 77, 65, 65);
     setState(() {
-      // Reset the game board
       gameBoard = List.generate(
         columnCount,
         (i) => List.generate(rowCount, (j) => null),
@@ -92,8 +139,8 @@ class _GameBoardState extends State<GameBoard> {
       currentScore = 0;
       gameOver = false;
       createNewPiece();
-      startGame();
     });
+    startGame();
   }
 
   bool checkCollision(Direction direction) {
@@ -132,7 +179,13 @@ class _GameBoardState extends State<GameBoard> {
           gameBoard[row][col] = currentPiece.type;
         }
       }
-      createNewPiece();
+      if (isGameOver()) {
+        // gameOver = true;
+        timer?.cancel();
+        showGameOverDialog(context);
+      } else {
+        createNewPiece();
+      }
     }
   }
 
@@ -165,6 +218,38 @@ class _GameBoardState extends State<GameBoard> {
     });
   }
 
+  void moveDownOne() {
+    if (!checkCollision(Direction.down)) {
+      setState(() {
+        currentPiece.movePiece(Direction.down);
+      });
+    } else {
+      checkLanding();
+    }
+  }
+
+  void moveDownTwo() {
+    for (int i = 0; i < 2; i++) {
+      if (!checkCollision(Direction.down)) {
+        setState(() {
+          currentPiece.movePiece(Direction.down);
+        });
+      } else {
+        checkLanding();
+        break;
+      }
+    }
+  }
+
+  void hardDrop() {
+    while (!checkCollision(Direction.down)) {
+      setState(() {
+        currentPiece.movePiece(Direction.down);
+      });
+    }
+    checkLanding();
+  }
+
   void clearLines() {
     //step 1: Loop through each row of the game board from bottom to top
     for (int row = columnCount - 1; row >= 0; row--) {
@@ -194,10 +279,10 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   bool isGameOver() {
-    gameOver = true;
     // check if any column in the top row is filled
     for (int col = 0; col < rowCount; col++) {
       if (gameBoard[0][col] != null) {
+        // gameOver = true;
         return true;
       }
     }
@@ -208,69 +293,444 @@ class _GameBoardState extends State<GameBoard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          Expanded(
-            child: GridView.builder(
-              // physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: rowCount,
-              ),
-              itemCount: rowCount * columnCount,
-              itemBuilder: (context, index) {
-                int row = (index / rowCount).floor();
-                int col = index % rowCount;
+      backgroundColor: Colors.grey[900],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Minimal Header
+              _buildHeader(),
+              SizedBox(height: 20),
 
-                if (currentPiece.positions.contains(index)) {
-                  return Pixel(color: currentPiece.color, child: index);
-                } else if (gameBoard[row][col] != null) {
-                  return Pixel(
-                    color: tetrominoColors[gameBoard[row][col]]!,
-                    child: index,
-                  );
-                } else {
-                  return Pixel(color: Colors.grey[900]!, child: index);
-                }
-              },
+              // Flexible Game Board that won't overflow
+              Flexible(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueGrey[800]!, width: 3),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.6),
+                        blurRadius: 15,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: rowCount,
+                      ),
+                      itemCount: rowCount * columnCount,
+                      itemBuilder: (context, index) {
+                        int row = (index / rowCount).floor();
+                        int col = index % rowCount;
+
+                        if (currentPiece.positions.contains(index)) {
+                          return _buildGameCell(
+                            color: currentPiece.color,
+                            hasBorder: true,
+                            isActive: true,
+                          );
+                        } else if (gameBoard[row][col] != null) {
+                          return _buildGameCell(
+                            color: tetrominoColors[gameBoard[row][col]]!,
+                            hasBorder: false,
+                            isActive: false,
+                          );
+                        } else {
+                          return _buildGameCell(
+                            color: Colors.grey[800]!,
+                            hasBorder: false,
+                            isActive: false,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // Compact Game Controls with Down Button
+              _buildGameControls(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[800]!.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            "TETRIS",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
             ),
           ),
-          Text(
-            "Score: $currentScore",
-            style: TextStyle(color: Colors.white, fontSize: 24),
-          ),
-          //Game Controls
-          Padding(
-            padding: const EdgeInsets.only(bottom: 50, top: 50),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    moveLeft();
-                  },
-                  color: Colors.white,
-                  icon: Icon(Icons.arrow_left),
-                ),
-                IconButton(
-                  onPressed: () {
-                    rotatePiece();
-                  },
-                  color: Colors.white,
-                  icon: Icon(Icons.rotate_right),
-                ),
-                IconButton(
-                  onPressed: () {
-                    moveRight();
-                  },
-                  color: Colors.white,
-                  icon: Icon(Icons.arrow_right),
-                ),
-              ],
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.amber[700],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "Score: $currentScore",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildGameCell({
+    required Color color,
+    required bool hasBorder,
+    required bool isActive,
+  }) {
+    return Container(
+      margin: EdgeInsets.all(0.5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
+        border: hasBorder
+            ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildGameControls() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Rotate Button
+          _buildControlButton(
+            onPressed: rotatePiece,
+            icon: Icons.rotate_right,
+            color: Colors.orange[700]!,
+            size: 60,
+          ),
+
+          SizedBox(height: 16),
+
+          // Direction Buttons Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                onPressed: moveLeft,
+                icon: Icons.arrow_left,
+                color: Colors.blue[700]!,
+                size: 60,
+              ),
+
+              _buildControlButton(
+                onPressed: moveDownOne,
+                icon: Icons.arrow_drop_down,
+                color: Colors.red[700]!,
+                size: 60,
+              ),
+
+              _buildControlButton(
+                onPressed: moveRight,
+                icon: Icons.arrow_right,
+                color: Colors.blue[700]!,
+                size: 60,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required Color color,
+    required double size,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.5),
+            blurRadius: 8,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        color: Colors.white,
+        icon: Icon(icon, size: size * 0.5),
+      ),
+    );
+  }
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     backgroundColor: Colors.grey[900],
+  //     body: SafeArea(
+  //       child: Padding(
+  //         padding: const EdgeInsets.all(16.0),
+  //         child: Column(
+  //           children: [
+  //             // Minimal Header
+  //             _buildHeader(),
+  //             SizedBox(height: 20),
+
+  //             // Expanded Game Board
+  //             Expanded(
+  //               child: Container(
+  //                 decoration: BoxDecoration(
+  //                   border: Border.all(color: Colors.blueGrey[800]!, width: 3),
+  //                   borderRadius: BorderRadius.circular(12),
+  //                   boxShadow: [
+  //                     BoxShadow(
+  //                       color: Colors.black.withOpacity(0.6),
+  //                       blurRadius: 15,
+  //                       spreadRadius: 3,
+  //                     ),
+  //                   ],
+  //                 ),
+  //                 child: ClipRRect(
+  //                   borderRadius: BorderRadius.circular(10),
+  //                   child: GridView.builder(
+  //                     physics: const NeverScrollableScrollPhysics(),
+  //                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+  //                       crossAxisCount: rowCount,
+  //                     ),
+  //                     itemCount: rowCount * columnCount,
+  //                     itemBuilder: (context, index) {
+  //                       int row = (index / rowCount).floor();
+  //                       int col = index % rowCount;
+
+  //                       if (currentPiece.positions.contains(index)) {
+  //                         return _buildGameCell(
+  //                           color: currentPiece.color,
+  //                           hasBorder: true,
+  //                           isActive: true,
+  //                         );
+  //                       } else if (gameBoard[row][col] != null) {
+  //                         return _buildGameCell(
+  //                           color: tetrominoColors[gameBoard[row][col]]!,
+  //                           hasBorder: false,
+  //                           isActive: false,
+  //                         );
+  //                       } else {
+  //                         return _buildGameCell(
+  //                           color: Colors.grey[800]!,
+  //                           hasBorder: false,
+  //                           isActive: false,
+  //                         );
+  //                       }
+  //                     },
+  //                   ),
+  //                 ),
+  //               ),
+  //             ),
+
+  //             SizedBox(height: 20),
+
+  //             // Compact Game Controls
+  //             _buildGameControls(),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+  /* 
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[800]!.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            "TETRIS",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.amber[700],
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withOpacity(0.3),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Text(
+              "Score: $currentScore",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGameCell({
+    required Color color,
+    required bool hasBorder,
+    required bool isActive,
+  }) {
+    return Container(
+      margin: EdgeInsets.all(0.5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(3),
+        border: hasBorder
+            ? Border.all(color: Colors.white.withOpacity(0.9), width: 1.5)
+            : null,
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.8),
+                  blurRadius: 6,
+                  spreadRadius: 2,
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 2,
+                  spreadRadius: 0.5,
+                ),
+              ],
+      ),
+    );
+  }
+
+  Widget _buildGameControls() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[800]!.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top Row - Rotate Button
+          _buildControlButton(
+            onPressed: rotatePiece,
+            icon: Icons.rotate_right,
+            color: Colors.orange[700]!,
+            size: 50,
+          ),
+
+          SizedBox(height: 12),
+
+          // Middle Row - Left/Right Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                onPressed: moveLeft,
+                icon: Icons.arrow_left,
+                color: Colors.blue[700]!,
+                size: 50,
+              ),
+
+              SizedBox(width: 60),
+
+              _buildControlButton(
+                onPressed: moveRight,
+                icon: Icons.arrow_right,
+                color: Colors.blue[700]!,
+                size: 50,
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12),
+
+          // Bottom Row - Down Button
+          _buildControlButton(
+            onPressed: moveDownOne,
+            icon: Icons.arrow_drop_down,
+            color: Colors.red[700]!,
+            size: 50,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required Color color,
+    required double size,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.5),
+            blurRadius: 8,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        color: Colors.white,
+        icon: Icon(icon, size: size * 0.5),
+      ),
+    );
+  }
+}
+ */
 }

@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 int rowCount = 10;
-int columnCount = 15;
+int columnCount = 13;
 
 enum TetrominoType { I, O, T, S, Z, J, L }
 
